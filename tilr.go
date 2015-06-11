@@ -5,13 +5,12 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
-	"image/jpeg"
+	"image/png"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
-	"strings"
 
 	"github.com/julienschmidt/httprouter"
 )
@@ -39,13 +38,16 @@ func RetrieveTile(t Tile) (i image.Image, e error) {
 		TileCachePath,
 		t.tileset,
 		strconv.Itoa(t.z),
+		strconv.Itoa(t.y),
 	)
 
+	filename := strconv.Itoa(t.x) + ".png"
 	file := path.Join(
 		TileCachePath,
 		t.tileset,
 		strconv.Itoa(t.z),
-		strings.Join([]string{strconv.Itoa(t.y), strconv.Itoa(t.x)}, "_"),
+		strconv.Itoa(t.y),
+		filename,
 	)
 
 	if _, err := os.Stat(file); err == nil {
@@ -91,10 +93,7 @@ func RetrieveTile(t Tile) (i image.Image, e error) {
 		return nil, err
 	}
 
-	var opt jpeg.Options
-	opt.Quality = TileQuality
-
-	jpeg.Encode(out, j, &opt)
+	png.Encode(out, j)
 	return j, nil
 }
 
@@ -155,15 +154,12 @@ func TileHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	if err != nil {
 		log.Panic(err)
 	} else {
-		var opt jpeg.Options
-		opt.Quality = TileQuality
-
-		jpeg.Encode(w, i, &opt)
+		png.Encode(w, i)
 	}
 }
 
 func main() {
-	log.Println("Starting Tilr v%s", TilrVersion)
+	log.Printf("Starting Tilr v%s\n", TilrVersion)
 
 	// handle routes
 	router := httprouter.New()
@@ -171,6 +167,6 @@ func main() {
 	router.GET("/:tileset", TilesetHandler)
 	router.GET("/:tileset/:z/:y/:x", TileHandler)
 
-	log.Println("Listening on %s", TilrBind)
+	log.Printf("Listening on %s\n", TilrBind)
 	log.Fatal(http.ListenAndServe(TilrBind, router))
 }
