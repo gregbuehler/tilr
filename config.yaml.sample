@@ -1,0 +1,19 @@
+server:
+  host: "0.0.0.0"
+  port: "5555"
+  cache: "/var/lib/tilr"
+tilesets:
+  foo:
+    type: filesystem
+  bar:
+    type: proxy
+    datasource:
+      url: http://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"
+  osm:
+    type: postgis
+    datasource:
+      host: localhost
+      user: postgres
+      password: foobar
+      dbname: database_name
+      table: table_name
