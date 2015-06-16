@@ -1,58 +1,113 @@
 package tileset
 
 import (
-	"fmt"
-	"net/http"
+	"errors"
+	"image"
+	"image/jpeg"
+	"image/png"
+	"os"
+	"path"
 	"strconv"
 
-	log "github.com/Sirupsen/logrus"
-
-	"github.com/julienschmidt/httprouter"
+	"github.com/gregbuehler/tilr/modules/setting"
 )
 
-type Tile struct {
-	x, y, z   int
-	lat, long float32
+type TilesetProvider interface {
+	PutCache(Tile) (Tile, error)
+	GetCache(Tile) (Tile, error)
+	GetTile(Tile) (Tile, error)
 }
 
-func TilesetHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	fmt.Fprintf(w, "tileset: %s\n", ps.ByName("tileset"))
+type Tileset struct {
+	Name string
+	Type string
 }
 
-func TileHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	tileset := ps.ByName("tileset")
-	z, err := strconv.Atoi(ps.ByName("z"))
-	if err != nil {
-		log.Panic(err)
-	}
+// func (t *Tileset) Info() string {
+// 	// i, err := json.Marshal(t)
+// 	// if err != nil {
+// 	// 	log.Panic("error:", err)
+// 	// }
+// 	//
+// 	// return string(i[:])
+// }
 
-	y, err := strconv.Atoi(ps.ByName("y"))
-	if err != nil {
-		log.Panic(err)
-	}
+func (t Tileset) PutCache(tile Tile) (Tile, error) {
+	z := strconv.Itoa(tile.Z)
+	y := strconv.Itoa(tile.Y)
+	x := strconv.Itoa(tile.X)
 
-	x, err := strconv.Atoi(ps.ByName("x"))
-	if err != nil {
-		log.Panic(err)
-	}
-
-	t := Tile{
-		z: z,
-		y: y,
-		x: x,
-	}
-
-	log.Printf("%s, %d, %d, %d",
-		tileset,
-		t.z,
-		t.y,
-		t.z,
+	// get cache path
+	tilepath := path.Join(
+		setting.CacheLocation,
+		t.Name,
+		z,
+		y,
+		x+"."+setting.CacheFiletype,
 	)
 
-	// i, err := RetrieveTile(tileset, t)
-	// if err != nil {
-	// 	log.Panic(err)
-	// } else {
-	// 	png.Encode(w, i)
-	// }
+	// check if cache directories exist and create them
+	// TODO: figure out proper permissions
+	err := os.MkdirAll(path.Dir(tilepath), 0777)
+	if err != nil {
+		return EmptyTile(), err
+	}
+
+	f, err := os.Open(tilepath)
+	if err != nil {
+		return EmptyTile(), err
+	}
+
+	defer f.Close()
+
+	switch setting.CacheFiletype {
+	case "png":
+		png.Encode(f, tile.Image)
+	case "jpg", "jpeg":
+		jpeg.Encode(f, tile.Image, &jpeg.Options{jpeg.DefaultQuality})
+	default:
+		return EmptyTile(), errors.New("invalid cache filetype")
+	}
+
+	return tile, nil
+}
+
+func (t Tileset) GetCache(tile Tile) (Tile, error) {
+	z := strconv.Itoa(tile.Z)
+	y := strconv.Itoa(tile.Y)
+	x := strconv.Itoa(tile.X)
+
+	// get cache path
+	tilepath := path.Join(
+		setting.CacheLocation,
+		t.Name,
+		z,
+		y,
+		x+"."+setting.CacheFiletype,
+	)
+
+	// check if tile exists
+	if _, err := os.Stat(tilepath); err != nil {
+		// load tile
+		f, err := os.Open(tilepath)
+		if err != nil {
+			return EmptyTile(), err
+		} else {
+			defer f.Close()
+		}
+
+		tile.Image, _, err = image.Decode(f)
+		if err != nil {
+			return EmptyTile(), err
+		} else {
+			return tile, nil
+		}
+	}
+
+	return EmptyTile(), nil
+}
+
+func (t Tileset) GetTile(tile Tile) (Tile, error) {
+	// This is only a stub. It should always have an implementation override
+	return EmptyTile(), nil
 }

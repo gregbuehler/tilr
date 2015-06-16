@@ -1,15 +1,27 @@
 package setting
 
+type Settings struct {
+	Server struct {
+		Cache string `json:"cache"`
+		Host  string `json:"host"`
+		Port  string `json:"port"`
+	} `json:"server"`
+}
+
 var (
-	AppVer = "0.0.2"
-	Host   = "0.0.0.0"
-	Port   = "5555"
+	AppVer        = "0.0.2"
+	CacheLocation = "/var/tilr/cache"
+	CacheFiletype = "png"
+
+	TileFileType = "png"
+	Host         = ""
+	Port         = "5555"
 )
 
 func init() {
 
 }
 
-func load() {
+func Load(configPath string) {
 
 }
